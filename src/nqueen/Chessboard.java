@@ -2,15 +2,15 @@ package nqueen;
 
 import java.util.ArrayList;
 import java.util.HashSet;
-import java.util.List;
 
 public class Chessboard {
 
 	private int N;
 	private boolean[][] board;
 
-	public Chessboard(int size, int[] queenIndices) {
-		N = size;
+	// Init chessboard with indices
+	public Chessboard(int[] queenIndices) {
+		N = queenIndices.length;
 		board = new boolean[N][N];
 		// Mark the queens on the board
 		for (Integer index : queenIndices) {
@@ -20,8 +20,22 @@ public class Chessboard {
 		}
 	}
 
-	public Chessboard(int size, Integer[] queenIndices) {
-		N = size;
+	// Init chessboard via copying a 2d array
+	public Chessboard(boolean[][] queenIndices) {
+		N = queenIndices.length;
+		board = new boolean[N][N];
+		// Mark the queens on the board
+		for (int i = 0; i < N; i++) {
+			for (int k = 0; k < N; k++) {
+				if (queenIndices[i][k] == true) {
+					board[i][k] = true;
+				}
+			}
+		}
+	}
+
+	public Chessboard(Integer[] queenIndices) {
+		N = queenIndices.length;
 		board = new boolean[N][N];
 		// Mark the queens on the board
 		for (Integer index : queenIndices) {
@@ -31,14 +45,37 @@ public class Chessboard {
 		}
 	}
 
-	public Chessboard(List<Integer> queenIndices) {
+	public Chessboard(ArrayList<Integer> queenIndices) {
 		// Mark the queens on the board
+		N = queenIndices.size();
+		board = new boolean[N][N];
 		for (Integer index : queenIndices) {
 			int x = getXFromIndex(index);
 			int y = getYFromIndex(index);
 			board[x][y] = true;
 		}
 	}
+	
+	public Chessboard(String stateString) {
+		// Mark the queens on the board
+		char[] arr = stateString.toCharArray();
+		N = arr.length;
+		board = new boolean[N][N];
+		for (int y = 0; y < arr.length; y++) {
+			char value = arr[y];
+			int x;
+			// If string contains A or greater
+			// Then N is >= 10, use conversion factor
+			if (value >= 'A') {
+				x = N - (value + 10 - 'A');
+			} else{
+				// Otherwise convert to a normal number < 9
+				x = N - Integer.parseInt(""+value);
+			}
+			board[x][y] = true;
+		}
+	}
+
 
 	public int getXFromIndex(int index) {
 		try {
@@ -58,7 +95,7 @@ public class Chessboard {
 		for (int i = 0; i < N; i++) {
 			for (int k = 0; k < N; k++) {
 				if (board[i][k] == true) {
-					str += "[*]";
+					str += "[O]";
 				} else {
 					str += "[ ]";
 				}
@@ -179,9 +216,32 @@ public class Chessboard {
 		}
 		return str;
 	}
-	
-	public int getNumberOfQueensAttacked() {
-		//Track the attacking pairs
+
+	// Retrieve number of queens one specific queen is attacking
+	public int getMostAggressiveQueen() {
+		int attacks = -1;
+		int index = -1;
+
+		// For all tiles on the board
+		for (int i = 0; i < N; i++) {
+			for (int k = 0; k < N; k++) {
+				// If there is a queen, check its enemies
+				if (board[i][k] == true) {
+					int next = (i * N) + k;
+					int targets = getEnemies(next).size();
+
+					if (targets > attacks) {
+						index = next;
+						attacks = targets;
+					}
+				}
+			}
+		}
+		return index;
+	}
+
+	public int getNumberOfPairsAttacked() {
+		// Track the attacking pairs
 		HashSet<Tuple> pairs = new HashSet<Tuple>();
 
 		// For all tiles on the board
@@ -191,31 +251,108 @@ public class Chessboard {
 				if (board[i][k] == true) {
 					int queen = (i * N) + k;
 					ArrayList<Integer> enemies = getEnemies(queen);
-					for (Integer otherQueen: enemies) {
-						pairs.add(new Tuple (queen, otherQueen));
+					for (Integer otherQueen : enemies) {
+						pairs.add(new Tuple(queen, otherQueen));
 					}
 				}
 			}
 		}
-		for (Tuple t: pairs) {
-			System.out.println(t.queen1 +"|" + t.queen2);
-		}
 		return pairs.size();
 	}
-	
-	public void steepestHillClimbing() {
-		//TODO:
+
+	// Start with initial state of all queens randomly placed in 1 of each
+	// column
+	// Do n-1 iterations, do not allow sideways movements
+	public void steepestHillClimbing(Chessboard cb) {
+		System.out.println("STEEPEST HILL CLIMB");
+		// Check entire board for its queens
+		for (int i = 0; i < N; i++) {
+			for (int k = 0; k < N; k++) {
+				// After finding a queen, get its successor states
+				if (board[i][k] == true) {
+					ArrayList<Chessboard> list = getSuccessors(new Chessboard(cb.board), k);
+					int bestValue = Integer.MAX_VALUE;
+					Chessboard best = null;
+
+					// Pick out the column's successor and remember the current
+					// best for later
+					for (Chessboard next : list) {
+						int queensAttacked = next.getNumberOfPairsAttacked();
+						if (queensAttacked < bestValue) {
+							bestValue = queensAttacked;
+							best = next;
+						}
+					}
+
+					// Replace the current Chessboard's column
+					for (int a = 0; a < N; a++) {
+						board[a][k] = best.board[a][k];
+					}
+
+					System.out.println(toString());
+					System.out.println("# of Queens Attacked: " + getNumberOfPairsAttacked());
+					k = N;
+				}
+			}
+		}
+		System.out.println(toString());
+		System.out.println("# of Queens Attacked: " + getNumberOfPairsAttacked());
+	}
+
+	// Given coordinates of a queen on a chessboard, get the new successors
+	public ArrayList<Chessboard> getSuccessors(Chessboard cb, int y) {
+		ArrayList<Chessboard> successors = new ArrayList<Chessboard>();
+		boolean[][] arr = new boolean[cb.N][cb.N];
+
+		// Copy over the input Chessboard's state. Erase the selected column.
+		for (int i = 0; i < cb.N; i++) {
+			for (int k = 0; k < cb.N; k++) {
+				if (cb.board[i][k] == true && y != k) {
+					arr[i][k] = true;
+				}
+			}
+		}
+
+		// Add all the boards with 1 queen moved
+		for (int i = 0; i < cb.N; i++) {
+			arr[i][y] = true;
+			successors.add(new Chessboard(arr));
+			arr[i][y] = false;
+		}
+
+		return successors;
+	}
+
+	// Begin with an initial population of unique boards
+	public void geneticAlgorithm(HashSet<Chessboard> set) {
+		// TODO:
+		
 	}
 	
-	public void geneticAlgorithm() {
-		//TODO:
+	// Turn queen positions of the board to a state string
+	public String stateString() {
+		String str = "";
+		for (int i = 0; i < N; i++) {
+			for (int k = 0; k < N; k++) {
+				if (board[k][i] == true) {
+					int value = (N-k);
+					// For arrays of possible size > 10, use characters
+					if (value >= 10) {
+						str += (char)('A' + value - 10);
+					} else {
+						str += value;
+					}
+				}
+			}
+		}
+		return str;
 	}
-	
+
 	private class Tuple {
 		int queen1;
 		int queen2;
-		
-		public Tuple (int index1, int index2) {
+
+		public Tuple(int index1, int index2) {
 			queen1 = index1;
 			queen2 = index2;
 			// Order the tuple from small to big
@@ -228,13 +365,13 @@ public class Chessboard {
 
 		// Include tuple values into hash
 		public int hashCode() {
-		    final int prime = 31;
-		    int result = 1;
-		    result = prime * result + queen1;
-		    result = prime * result + queen2;
-		    return result;
+			final int prime = 31;
+			int result = 1;
+			result = prime * result + queen1;
+			result = prime * result + queen2;
+			return result;
 		}
-		
+
 		// If another tuple contains both numbers
 		public boolean equals(Object secondQueen) {
 			int i = 2;
