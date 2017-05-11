@@ -45,6 +45,7 @@ public class Chessboard {
 		}
 	}
 
+	// Init Chessboard via arraylist
 	public Chessboard(ArrayList<Integer> queenIndices) {
 		// Mark the queens on the board
 		N = queenIndices.size();
@@ -56,6 +57,7 @@ public class Chessboard {
 		}
 	}
 	
+	// Init board via statestring
 	public Chessboard(String stateString) {
 		// Mark the queens on the board
 		char[] arr = stateString.toCharArray();
@@ -75,7 +77,6 @@ public class Chessboard {
 			board[x][y] = true;
 		}
 	}
-
 
 	public int getXFromIndex(int index) {
 		try {
